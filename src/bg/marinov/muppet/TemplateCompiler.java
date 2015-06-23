@@ -1,35 +1,41 @@
 package bg.marinov.muppet;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import bg.marinov.muppet.exception.TemplateException;
 
 public class TemplateCompiler {
 	private static final int PERVIEW_SIZE = 80;
 
 	private final String mExprStart;
 	private final Pattern mStartPattern;
+
+	private final String mExprEnd;
 	private final Pattern mExprEndPattern;
+
+	private final String mScriptEnd;
 	private final Pattern mScriptEndPattern;
 
 	// @formatter:off
-	// TODO: these regexps are not quite right - e.g. single line comment DOTALL
 	private static List<String> SKIP_PATTERNS = Arrays.asList( 
-		"\\/\\*.*?\\*\\/",		// multiline comment
-		"\\/\\/.*",				// single line comment
-		"'(?:\\\\'|[^'])*'",	// single quoted string
-		"\"(?:\\\\\"|[^\"])*\"", // double quoted string
-		".*?"					// anything else
+		"\\/\\*(?:\\r|\\n|.)*?\\*\\/",	// multiline comment
+		"\\/\\/.*",						// single line comment
+		"'(?:\\\\'|[^'])*'",			// single quoted string
+		"\"(?:\\\\\"|[^\"])*\""			// double quoted string
 	);
 	// @formatter:on
 
 	public static final TemplateCompiler DEFAULT_COMPILER = new TemplateCompiler("<?", "?>", "<?=", "?>");
 
-	private static Pattern getEndPattern(final String aRegExp) {
-		final String patterns = String.join("|", SKIP_PATTERNS);
+	private static Pattern getEndPattern(final String aString) {
+		final List<String> patterns = new ArrayList<>(SKIP_PATTERNS);
+		patterns.add(Pattern.quote(aString));
 
-		return Pattern.compile("(?:" + patterns + ")*(" + Pattern.quote(aRegExp) + ")", Pattern.DOTALL);
+		return Pattern.compile(String.join("|", patterns));
 	}
 
 	private TemplateCompiler(final String aScriptTagStart,
@@ -39,7 +45,11 @@ public class TemplateCompiler {
 
 		mExprStart = aExprTagStart;
 		mStartPattern = Pattern.compile(Pattern.quote(aExprTagStart) + '|' + Pattern.quote(aScriptTagStart));
+
+		mExprEnd = aExprTagEnd;
 		mExprEndPattern = getEndPattern(aExprTagEnd);
+
+		mScriptEnd = aScriptTagEnd;
 		mScriptEndPattern = getEndPattern(aScriptTagEnd);
 	}
 
@@ -54,12 +64,12 @@ public class TemplateCompiler {
 		return new TemplateCompiler(aScriptTagStart, aScriptTagEnd, aExprTagStart, aExprTagEnd);
 	}
 
-	public String compileToScript(final String aSource) throws Exception {
+	public String compileToScript(final String aSource) throws TemplateException {
 		final StringBuilder buffer = new StringBuilder(aSource.length());
 
 		final Matcher m = mStartPattern.matcher(aSource);
-		final Matcher mScriptEnd = mScriptEndPattern.matcher(aSource);
-		final Matcher mExprEnd = mExprEndPattern.matcher(aSource);
+		final Matcher scriptEnd = mScriptEndPattern.matcher(aSource);
+		final Matcher exprEnd = mExprEndPattern.matcher(aSource);
 
 		int index = 0;
 		while (m.find(index)) {
@@ -67,27 +77,27 @@ public class TemplateCompiler {
 			buffer.append("echo('").append(text).append("');\n");
 
 			if (m.group().equals(mExprStart)) {
-				if (!mExprEnd.find(m.end())) {
+				if (!findEnd(m.end(), exprEnd, mExprEnd)) {
 					final String preview = aSource.substring(
 						m.end(),
 						Math.min(m.end() + PERVIEW_SIZE, aSource.length()));
 
-					throw new Exception("Expression not closed: " + preview);
+					throw new TemplateException("Expression not closed: " + preview);
 				}
 
-				index = mExprEnd.end();
+				index = exprEnd.end();
 
-				final int end = mExprEnd.start(1);
+				final int end = exprEnd.start();
 				final String expr = aSource.substring(m.end(), end);
 				buffer.append("echo(").append(expr).append(");\n");
 			} else {
 				final int end;
-				if (!mScriptEnd.find(m.end())) {
+				if (!findEnd(m.end(), scriptEnd, mScriptEnd)) {
 					end = aSource.length();
 					index = end;
 				} else {
-					end = mScriptEnd.start(1);
-					index = mScriptEnd.end();
+					end = scriptEnd.start();
+					index = scriptEnd.end();
 				}
 
 				final String code = aSource.substring(m.end(), end);
@@ -102,6 +112,20 @@ public class TemplateCompiler {
 		}
 
 		return buffer.toString();
+	}
+
+	private static boolean findEnd(final int aOffset, final Matcher aMatcher, final String aAnchor) {
+		int offset = aOffset;
+
+		while (aMatcher.find(offset)) {
+			if (aAnchor.equals(aMatcher.group())) {
+				return true;
+			}
+
+			offset = aMatcher.end();
+		}
+
+		return false;
 	}
 
 	private static String escapeString(final String aString) {

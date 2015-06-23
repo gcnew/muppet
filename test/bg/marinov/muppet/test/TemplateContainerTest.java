@@ -4,6 +4,7 @@ import junit.framework.TestCase;
 import re.agiledesign.mp2.util.Util;
 import bg.marinov.muppet.TemplateCompiler;
 import bg.marinov.muppet.TemplateContainer;
+import bg.marinov.muppet.exception.TemplateException;
 
 public class TemplateContainerTest extends TestCase {
 	private void assertEval(final String aSource, final String aExpected) {
@@ -15,7 +16,17 @@ public class TemplateContainerTest extends TestCase {
 			final String result = TemplateContainer.eval(aCompiler, aSource);
 
 			assertEquals(aExpected, result);
-		} catch (Exception e) {
+		} catch (final Exception e) {
+			Util.rethrowUnchecked(e);
+		}
+	}
+
+	private void assertCompile(final String aSource, final String aExpected) {
+		try {
+			final String result = TemplateCompiler.getInstance().compileToScript(aSource);
+
+			assertEquals(aExpected, result);
+		} catch (final Exception e) {
 			Util.rethrowUnchecked(e);
 		}
 	}
@@ -35,7 +46,7 @@ public class TemplateContainerTest extends TestCase {
 	}
 
 	public void testUnclosedExpr() {
-		assertException("Hello <?= // Not closed", Exception.class);
+		assertException("Hello <?= // Not closed", TemplateException.class);
 	}
 
 	public void testScript() {
@@ -58,5 +69,55 @@ public class TemplateContainerTest extends TestCase {
 		final TemplateCompiler cc = TemplateCompiler.getInstance("{%", "%}", "{=", "=}");
 		assertEval(cc, "Custom {% echo(\"Tag\") %}", "Custom Tag");
 		assertEval(cc, "Custom {= 'Tag' =}", "Custom Tag");
+	}
+
+	public void testFakeClosingTagsSingleQuote() {
+		// single quotes
+		assertCompile("This is <? echo('a fake ?>')", "echo('This is ');\n echo('a fake ?>')");
+		assertCompile("Is this <? echo('a fake ?>') ?>?", "echo('Is this ');\n echo('a fake ?>') echo('?');\n");
+
+		assertCompile("Is this <?= 'a fake ?>' ?>?", "echo('Is this ');\necho( 'a fake ?>' );\necho('?');\n");
+	}
+
+	public void testFakeClosingTagsDoubleQuote() {
+		// double quotes
+		assertCompile("This is <? echo(\"a fake ?>\")", "echo('This is ');\n echo(\"a fake ?>\")");
+		assertCompile("Is this <? echo(\"a fake ?>\") ?>?", "echo('Is this ');\n echo(\"a fake ?>\") echo('?');\n");
+
+		assertCompile("Is this <?= \"a fake ?>\" ?>?", "echo('Is this ');\necho( \"a fake ?>\" );\necho('?');\n");
+	}
+
+	public void testFakeClosingTagsSingleLineComment() {
+		// single line comment
+		assertCompile("This is <? // ?>\n echo('a fake ?>')", "echo('This is ');\n // ?>\n echo('a fake ?>')");
+		assertCompile(
+			"Is this <? // ?>\n echo('a fake ?>') ?>?",
+			"echo('Is this ');\n // ?>\n echo('a fake ?>') echo('?');\n");
+
+		assertCompile(
+			"Is this <?= // ?>\n 'a fake ?>' ?>?",
+			"echo('Is this ');\necho( // ?>\n 'a fake ?>' );\necho('?');\n");
+
+		// not closed because of comment
+		assertCompile("This is <? // ?> echo('a fake ?>')", "echo('This is ');\n // ?> echo('a fake ?>')");
+		assertException("This is <?= // ?> echo('a fake ?>')", TemplateException.class);
+	}
+
+	public void testFakeClosingTagsMultilineLineComment() {
+		// single line comment
+		assertCompile("This is <? /*\n?>\n*/ echo('a fake ?>')", "echo('This is ');\n /*\n?>\n*/ echo('a fake ?>')");
+		assertCompile(
+			"Is this <? /*?>*/\n echo('a fake ?>') ?>?",
+			"echo('Is this ');\n /*?>*/\n echo('a fake ?>') echo('?');\n");
+
+		assertCompile(
+			"Is this <?= /*?>\n*/ 'a fake ?>' ?>?",
+			"echo('Is this ');\necho( /*?>\n*/ 'a fake ?>' );\necho('?');\n");
+
+		// not closed comment
+		assertCompile("This is <? /* ?> echo('a fake ?>')", "echo('This is ');\n /* echo(' echo(\\'a fake ?>\\')');\n");
+		assertCompile(
+			"This is <?= /* ?> echo('a fake ?>')",
+			"echo('This is ');\necho( /* );\necho(' echo(\\'a fake ?>\\')');\n");
 	}
 }
