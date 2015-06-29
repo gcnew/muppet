@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MP2 & muppet demo - Maze Generator</title>
+		<style>
+			span {
+				width: 5px;
+				height: 5px;
+				float: left;
+			}
+
+			.clear {
+				clear: left;
+			}
+
+			.wall {
+				background-color: black;
+			}
+
+			.path {
+				background-color: beige;
+			}
+		</style>
+	</head>
+	<body>
+	<?
+		function getClass(className) {
+			return 0.getClass().forName(className);
+		}
+
+		function forEach(arr, f) {
+			local i = 0;
+
+			while (i < arr.size()) {
+				f(arr[i], i);
+				i++;
+			}
+		}
+
+		function createMazeMatrix(width, height) {
+			var retval = [];
+
+			forEach((0 .. width * height - 1), () => retval.add(0));
+
+			forEach((0 .. width - 1), (w) => {
+				retval[w] = 1;
+				retval[width * (height - 1) + w] = 1;
+			});
+
+			forEach((0 .. height - 1), (h) => {
+				retval[width * h] = 1;
+				retval[width * (h + 1) - 1] = 1;
+			});
+
+			return retval;
+		}
+
+		function createMaze(width, height, complexity, density) {
+			width = width || 81;
+			height = height || 51;
+			complexity = complexity || 0.75;
+			density = density || 0.75;
+
+			local shape = ( (height / 2) * 2 + 1, (width / 2) * 2 + 1 );
+
+			complexity = (int) (complexity * (5 * (shape[0] + shape[1])));
+			density = (int) (density * (shape[0] / 2 + shape[1] / 2));
+			
+			var Z = createMazeMatrix(shape[1], shape[0]);
+			local get = (ix, iy) => return Z[ix + iy * width];
+
+			local i, j;
+			local random = getClass('java.util.Random').newInstance();
+			for (i = 0; i < density; ++i) {
+				local x = random.nextInt(shape[1] / 2) * 2;
+				local y = random.nextInt(shape[0] / 2) * 2;
+
+				Z[y * shape[1] + x] = 1;
+				for (j = 0; j < complexity; ++j) {
+					local neighbours = [];
+
+					if (x > 1)            neighbours.add((y, x - 2));
+					if (x < shape[1] - 2) neighbours.add((y, x + 2));
+					if (y > 1)            neighbours.add((y - 2, x));
+					if (y < shape[0] - 2) neighbours.add((y + 2, x));
+
+					if (!neighbours.isEmpty()) {
+						local _n = neighbours[random.nextInt(neighbours.size() - 1)]
+						local _x = _n[1], _y = _n[0];
+
+						if (Z[_y * shape[1] + _x] === 0) {
+							Z[_y * shape[1] + _x] = 1;
+							Z[(_y + (y - _y) / 2) * shape[1] + _x + (x - _x) / 2] = 1;
+
+							x = _x;
+							y = _y;
+						}
+					}
+				}
+
+				return ( 'width' -> shape[1], 'height' -> shape[0], 'm' -> Z, 'get' -> get );
+			}
+		}
+	?>
+	<?
+		function drawMaze(matrix) {
+			local i, j;
+
+			for (i = 0; i < matrix['height']; ++i)
+				for (j = 0; j < matrix['width']; ++j) {
+					local style = matrix['get'](j, i) ? 'wall' : 'path';
+
+					if (j === 0) {
+						style += ' clear';
+					}
+
+					echo('<span class="' + style + '"></span>');
+				}
+		}
+	?>
+	<? drawMaze(createMaze()) ?>
+	</body>
+</html>
