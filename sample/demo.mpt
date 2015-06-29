@@ -24,6 +24,11 @@
 	</head>
 	<body>
 	<?
+		'''
+		The following demo is a translation of the algorithm written in python from
+		https://en.wikipedia.org/w/index.php?title=Maze_generation_algorithm&oldid=655624771
+		'''
+
 		function getClass(className) {
 			return 0.getClass().forName(className);
 		}
@@ -67,7 +72,7 @@
 			complexity = complexity || 0.75;
 			density = density || 0.75;
 
-			'normalize width & height to always be odd';
+			'''normalize width & height to always be odd'''
 			width = (width / 2) * 2 + 1;
 			height = (height / 2) * 2 + 1;
 
