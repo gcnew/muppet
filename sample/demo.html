@@ -56,8 +56,8 @@
 				'm' -> m,
 				'width' -> width,
 				'height' -> height,
-				'get' -> (x, y) => return m[x + y * width],
-				'set' -> (x, y, v) => m[x + y * width] = v
+				'get' -> (y, x) => return m[y * width + x],
+				'set' -> (y, x, v) => m[y * width + x] = v
 			);
 		}
 
@@ -84,7 +84,7 @@
 				local x = random.nextInt(width / 2) * 2;
 				local y = random.nextInt(height / 2) * 2;
 
-				set(x, y, 1);
+				set(y, x, 1);
 				for (j = 0; j < complexity; ++j) {
 					local neighbours = [];
 
@@ -97,9 +97,9 @@
 						local _n = neighbours[random.nextInt(neighbours.size() - 1)];
 						local _x = _n[1], _y = _n[0];
 
-						if (get(_x, _y) === 0) {
-							set(_x, _y, 1);
-							set(_x + (x - _x) / 2, _y + (y - _y) / 2, 1);
+						if (get(_y, _x) === 0) {
+							set(_y, _x, 1);
+							set(_y + (y - _y) / 2, _x + (x - _x) / 2, 1);
 
 							x = _x;
 							y = _y;
@@ -117,7 +117,7 @@
 
 			for (i = 0; i < matrix['height']; ++i)
 				for (j = 0; j < matrix['width']; ++j) {
-					local style = matrix['get'](j, i) ? 'wall' : 'path';
+					local style = matrix['get'](i, j) ? 'wall' : 'path';
 
 					if (j === 0) {
 						style += ' clear';
