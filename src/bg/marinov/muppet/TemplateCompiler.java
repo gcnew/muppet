@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import re.agiledesign.mp2.util.ArrayUtil;
 import bg.marinov.muppet.exception.TemplateException;
 
 public class TemplateCompiler {
@@ -32,10 +33,10 @@ public class TemplateCompiler {
 	public static final TemplateCompiler DEFAULT_COMPILER = new TemplateCompiler("<?", "?>", "<?=", "?>");
 
 	private static Pattern getEndPattern(final String aString) {
-		final List<String> patterns = new ArrayList<>(SKIP_PATTERNS);
+		final List<String> patterns = new ArrayList<String>(SKIP_PATTERNS);
 		patterns.add(Pattern.quote(aString));
 
-		return Pattern.compile(String.join("|", patterns));
+		return Pattern.compile(ArrayUtil.arrayJoin("|", patterns.toArray()));
 	}
 
 	private TemplateCompiler(final String aScriptTagStart,
