@@ -67,7 +67,7 @@
 			complexity = complexity || 0.75;
 			density = density || 0.75;
 
-			'normalize width & height to be always odd';
+			'normalize width & height to always be odd';
 			width = (width / 2) * 2 + 1;
 			height = (height / 2) * 2 + 1;
 
