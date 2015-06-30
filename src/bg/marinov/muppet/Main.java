@@ -12,8 +12,8 @@ public class Main {
 		final boolean showHelp = Arrays.asList(args).contains("--help");
 
 		if ((args.length != 1) || showHelp) {
-			System.err.println("Syntax: muppet <file>");
-			System.exit(-1);
+			System.err.println("Syntax: muppet [--help] <file>");
+			System.exit(showHelp ? 0 : -1);
 		}
 
 		final String fileName = args[0];
